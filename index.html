@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#070c13" />
+  <meta name="description" content="An interactive, numerically validated flight-control and proportional-navigation engineering laboratory." />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+  <title>Flight Control Lab — Guidance & Control Simulator</title>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#autopilot" aria-label="Flight Control Lab home">
+      <span class="brand-mark"><span class="brand-cross"></span></span>
+      <span class="brand-copy"><strong>FLIGHT CONTROL <em>LAB</em></strong><small>GUIDANCE &amp; CONTROL ENVIRONMENT</small></span>
+    </a>
+    <nav class="nav" aria-label="Simulator sections">
+      <button class="nav-item active" data-page="autopilot">01 <span>AUTOPILOT</span></button>
+      <button class="nav-item" data-page="guidance">02 <span>INTERCEPTION</span></button>
+      <button class="nav-item" data-page="validation">03 <span>VALIDATION</span></button>
+    </nav>
+    <div class="header-actions"><span class="top-status"><i></i> PHYSICS-BASED MODEL</span><button id="presentationBtn" class="btn btn-outline"><span>⛶</span> PRESENT</button></div>
+  </header>
+
+  <main class="shell">
+    <section class="intro" id="intro">
+      <div class="eyebrow"><span class="eyebrow-line"></span> AEROSPACE SYSTEMS / INTERACTIVE RESEARCH</div>
+      <div class="intro-row"><div><h1>Engineering, <span>in motion.</span></h1><p>Explore how a control law becomes a physical response — from aerodynamic surfaces to a moving-target interception.</p></div>
+      <div class="intro-chip"><span class="chip-icon">⌁</span><div><small>MODEL INTEGRITY</small><strong>MATLAB-REFERENCED</strong><span>Continuous-time dynamics · numerical integration</span></div></div></div>
+    </section>
+
+    <section id="autopilotPage" class="page" aria-label="Autopilot laboratory">
+      <div class="section-head"><div><span class="section-kicker">EXPERIMENT 01 / LONGITUDINAL DYNAMICS</span><h2>Autopilot Dynamics <span>—</span> Specific Acceleration</h2></div><div class="section-meta">MODEL <span>SHORT PERIOD + ACTUATOR</span> <b class="tag">7-STATE CLOSED LOOP</b></div></div>
+      <div class="workbench">
+        <aside class="control-panel panel">
+          <div class="panel-heading"><div><span class="panel-index">01</span><h3>Simulation Controls</h3></div><span class="live-dot"></span></div>
+          <p class="panel-desc">Adjust the reference and physical parameters. Each change solves the state equations again.</p>
+          <div class="section-divider">CONTROL CONFIGURATION</div>
+          <label class="field-label" for="apMode">CONTROL ARCHITECTURE</label>
+          <select id="apMode" class="field-select"><option value="integral">Observer + integral feedback</option><option value="state">Full-state feedback · ideal sensing</option><option value="open">Open-loop · fixed deflection</option></select>
+          <div class="param" id="referenceControl"><div class="param-label"><label for="apReference">Acceleration reference</label><output id="apReferenceValue">+1.00 m/s²</output></div><input id="apReference" type="range" min="-2" max="2" step="0.1" value="1"/><div class="param-range"><span>−2.0</span><span>+2.0 m/s²</span></div></div>
+          <div class="param hidden" id="manualControl"><div class="param-label"><label for="apManual">Fixed surface command</label><output id="apManualValue">0.10°</output></div><input id="apManual" type="range" min="-1" max="1" step="0.05" value="0.1"/></div>
+          <div class="section-divider">PLANT &amp; INITIAL CONDITIONS</div>
+          <div class="param"><div class="param-label"><label for="apTau">Actuator time constant τδ</label><output id="apTauValue">15 ms</output></div><input id="apTau" type="range" min="5" max="50" step="1" value="15"/><div class="param-range"><span>5 ms</span><span>50 ms</span></div></div>
+          <div class="two-param"><div class="mini-param"><label for="apAlpha">Initial α</label><select id="apAlpha"><option value="0">0°</option><option value="0.25">+0.25°</option><option value="-0.25">−0.25°</option></select></div><div class="mini-param"><label for="apQ">Initial q</label><select id="apQ"><option value="0">0°/s</option><option value="0.5">+0.5°/s</option><option value="-0.5">−0.5°/s</option></select></div></div>
+          <div class="param"><div class="param-label"><label for="apDisturbance">Input disturbance</label><output id="apDisturbanceValue">0.000 rad</output></div><input id="apDisturbance" type="range" min="0" max="0.005" step="0.001" value="0"/><div class="param-hint">Applied to the plant at t = 0.5 s, not to the observer.</div></div>
+          <div class="section-divider">RUN COMMAND</div>
+          <div class="run-buttons"><button id="apPlay" class="btn btn-primary"><span>▶</span> RUN SIMULATION</button><button id="apReset" class="btn btn-icon" title="Reset to time zero" aria-label="Reset autopilot">↺</button></div>
+          <div class="info-note"><span>ⓘ</span><p>Linearized perturbation model at <b>100 m/s</b>. Body +Z and a<sub>z</sub> are positive downward. No artificial aerodynamic forces.</p></div>
+        </aside>
+        <div class="workbench-content">
+          <section class="viz-panel panel">
+            <div class="panel-top"><div><span class="overline">LIVE ATTITUDE VISUALIZATION</span><h3>Vehicle &amp; Body Axes</h3></div><div class="panel-tools"><button class="view-btn selected" data-view="iso">3D VIEW</button><button class="view-btn" data-view="side">SIDE</button><button class="view-btn" data-view="top">TOP</button></div></div>
+            <div class="scene-wrap"><canvas id="airframeCanvas" aria-label="Projected three-dimensional vehicle attitude and control-surface visualization"></canvas>
+              <div class="scene-overlay scene-tl"><span class="status-key">ATTITUDE / SIMULATION</span><strong id="scenePitch">θ +0.000°</strong><small id="sceneAlpha">α +0.000° · q +0.000°/s</small></div>
+              <div class="scene-overlay scene-br"><span class="legend-pip px"></span> BODY X <span class="legend-pip pz"></span> BODY Z <span class="legend-pip pv"></span> VELOCITY</div>
+              <div class="scene-left-hint">DRAG TO ORBIT · REFERENCE GEOMETRY NOT TO SCALE</div>
+            </div>
+            <div class="transport"><span id="apTime" class="transport-time">T+ 0.000 <small>s</small></span><input type="range" min="0" max="1000" value="0" step="1" id="apScrub" aria-label="Autopilot simulation time"/><span class="speed-label">PLAYBACK</span><select id="apSpeed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
+          </section>
+          <div class="telemetry-grid"><div class="stat panel"><small>COMMANDED a<sub>z</sub></small><strong id="statApRef">+1.000</strong><span>m/s² <i class="accent-dot cyan"></i></span></div><div class="stat panel"><small>ACTUAL a<sub>z</sub></small><strong id="statApAz">+0.000</strong><span>m/s² <i class="accent-dot blue"></i></span></div><div class="stat panel"><small>TRACKING ERROR</small><strong id="statApError">+1.000</strong><span>m/s² <i class="accent-dot amber"></i></span></div><div class="stat panel"><small>ACTUATOR δ</small><strong id="statApDelta">+0.000</strong><span>degrees <i class="accent-dot teal"></i></span></div></div>
+          <div class="charts-grid"><section class="chart-card panel"><div class="chart-head"><div><span class="overline">TELEMETRY / 01</span><h3>Acceleration Tracking</h3></div><span class="chart-key"><i class="line-blue"></i> ACTUAL <i class="line-cyan"></i> COMMAND</span></div><canvas id="apAccelerationChart"></canvas></section><section class="chart-card panel"><div class="chart-head"><div><span class="overline">TELEMETRY / 02</span><h3>Control Surface</h3></div><span class="chart-key"><i class="line-teal"></i> δ <i class="line-amber"></i> δc</span></div><canvas id="apSurfaceChart"></canvas></section></div>
+        </div>
+      </div>
+      <details class="model-details panel"><summary><span>∑</span><strong>View numerical model &amp; controller equations</strong><small>EXPAND ENGINEERING NOTES</small></summary><div class="formula-grid"><div><h4>LONGITUDINAL DYNAMICS</h4><code>α̇ = q + Zα/(mV₀)·α + Zδ/(mV₀)·δ<br>q̇ = Mα/Iyy·α + Mq/Iyy·q + Mδ/Iyy·δ<br>δ̇ = (δc − δ)/τδ<br>az = Zα/m·α + Zδ/m·δ</code></div><div><h4>OBSERVER + INTEGRAL CONTROLLER</h4><code>δc = sat(−K·x̂ − ki·ξ, ±10°)<br>x̂̇ = A·x̂ + B·δc + L(y − Co·x̂)<br>ξ̇ = r − az<br>y = [az, q]ᵀ</code></div></div><p>State vector x = [α, q, δ]ᵀ. The observer uses a nominal command; an applied actuator-input disturbance is unknown to it. Pitch θ is reconstructed by integrating q with θ(0)=0. The displayed model is linearized about trim, not a full six-degree-of-freedom flight model.</p></details>
+    </section>
+
+    <section id="guidancePage" class="page hidden" aria-label="Target-interception laboratory">
+      <div class="section-head"><div><span class="section-kicker">EXPERIMENT 02 / PROPORTIONAL NAVIGATION</span><h2>Target Interception <span>—</span> Guidance</h2></div><div class="section-meta">LAW <span>PN + GRAVITY FEEDFORWARD</span> <b class="tag">2D KINEMATICS</b></div></div>
+      <div class="workbench"><aside class="control-panel panel"><div class="panel-heading"><div><span class="panel-index">02</span><h3>Guidance Parameters</h3></div><span class="live-dot"></span></div><p class="panel-desc">Compare ideal response with a first-order acceleration lag using the same moving target.</p>
+        <div class="section-divider">NAVIGATION LAW</div>
+        <div class="param"><div class="param-label"><label for="gN">Navigation constant N</label><output id="gNValue">3.0</output></div><input id="gN" type="range" min="2" max="5" step="0.1" value="3"/><div class="param-range"><span>2.0</span><span>5.0</span></div></div>
+        <div class="param"><div class="param-label"><label for="gTau">Acceleration lag τa</label><output id="gTauValue">150 ms</output></div><input id="gTau" type="range" min="50" max="600" step="10" value="150"/></div>
+        <div class="section-divider">INITIAL GEOMETRY</div>
+        <div class="param"><div class="param-label"><label for="gAltitude">Initial altitude</label><output id="gAltitudeValue">1,000 m</output></div><input id="gAltitude" type="range" min="500" max="1500" step="50" value="1000"/></div>
+        <div class="param"><div class="param-label"><label for="gTargetX">Initial target distance</label><output id="gTargetXValue">1,000 m</output></div><input id="gTargetX" type="range" min="500" max="1800" step="50" value="1000"/></div>
+        <div class="two-param"><div class="mini-param"><label for="gVM">Interceptor speed</label><select id="gVM"><option value="40">40 m/s</option><option value="50" selected>50 m/s</option><option value="60">60 m/s</option><option value="70">70 m/s</option><option value="90">90 m/s</option></select></div><div class="mini-param"><label for="gVT">Target speed</label><select id="gVT"><option value="10">10 m/s</option><option value="20">20 m/s</option><option value="30" selected>30 m/s</option><option value="40">40 m/s</option><option value="50">50 m/s</option></select></div></div>
+        <div class="section-divider">RUN COMMAND</div><div class="run-buttons"><button id="gPlay" class="btn btn-primary"><span>▶</span> RUN INTERCEPTION</button><button id="gReset" class="btn btn-icon" aria-label="Reset guidance">↺</button></div>
+        <div class="info-note"><span>ⓘ</span><p>Normal acceleration is positive <b>UP</b>. The simulation stops at the <b>5 m hit radius</b>, not at an exact collision.</p></div>
+      </aside><div class="workbench-content"><section class="viz-panel panel"><div class="panel-top"><div><span class="overline">LIVE TRAJECTORY / EARTH FRAME</span><h3>Interceptor vs. Moving Target</h3></div><div class="panel-tools"><span class="trace-label"><i class="tr-blue"></i> IDEAL</span><span class="trace-label"><i class="tr-amber"></i> LAGGED</span></div></div><div class="scene-wrap guidance-scene"><canvas id="guidanceCanvas"></canvas><div class="scene-overlay scene-tl"><span class="status-key">TARGET RANGE / LAGGED</span><strong id="sceneRange">1,414.2 m</strong><small id="sceneGuidanceStatus">INTERCEPTOR TRACKING</small></div><div class="scene-overlay scene-br"><span class="legend-pip px"></span> INTERCEPTOR <span class="legend-pip pz"></span> TARGET <span class="legend-pip pv"></span> LINE OF SIGHT</div></div><div class="transport"><span id="gTime" class="transport-time">T+ 00.00 <small>s</small></span><input id="gScrub" type="range" min="0" max="1000" step="1" value="0"/><span class="speed-label">PLAYBACK</span><select id="gSpeed"><option value="1">1×</option><option value="4">4×</option><option value="10" selected>10×</option><option value="20">20×</option><option value="40">40×</option></select></div></section>
+        <div class="telemetry-grid"><div class="stat panel"><small>IDEAL STOP TIME</small><strong id="statIdealTime">61.899</strong><span>seconds <i class="accent-dot blue"></i></span></div><div class="stat panel"><small>LAGGED STOP TIME</small><strong id="statLagTime">61.968</strong><span>seconds <i class="accent-dot amber"></i></span></div><div class="stat panel"><small>LINE OF SIGHT λ</small><strong id="statLambda">−45.00</strong><span>degrees <i class="accent-dot teal"></i></span></div><div class="stat panel"><small>NORMAL ACCELERATION</small><strong id="statNormalA">+9.810</strong><span>m/s² · UP <i class="accent-dot cyan"></i></span></div></div>
+        <div class="charts-grid"><section class="chart-card panel"><div class="chart-head"><div><span class="overline">TELEMETRY / 03</span><h3>Target Range</h3></div><span class="chart-key"><i class="line-blue"></i> IDEAL <i class="line-amber"></i> LAGGED</span></div><canvas id="gRangeChart"></canvas></section><section class="chart-card panel"><div class="chart-head"><div><span class="overline">TELEMETRY / 04</span><h3>Normal Acceleration</h3></div><span class="chart-key"><i class="line-blue"></i> IDEAL <i class="line-amber"></i> LAGGED</span></div><canvas id="gAccelChart"></canvas></section></div>
+      </div></div><details class="model-details panel"><summary><span>∑</span><strong>Explore the proportional navigation equations</strong><small>EXPAND ENGINEERING NOTES</small></summary><div class="formula-grid"><div><h4>RELATIVE GEOMETRY</h4><code>R = √(rx² + rh²)<br>λ = atan2(rh, rx)<br>λ̇ = (rx·vrh − rh·vrx)/R²<br>Vc = −(rx·vrx + rh·vrh)/R</code></div><div><h4>GUIDANCE &amp; ACTUATOR LAG</h4><code>aPN = N·max(Vc, 0)·λ̇<br>ac = sat(aPN + g·cos(γ), ±2g)<br>γ̇ = (aactual − g·cos(γ))/vM<br>ȧactual = (ac − aactual)/τa</code></div></div><p>Speed vM is assumed constant, target motion is horizontal and constant-velocity, and the lagged model initializes acceleration at g (level-flight equilibrium). The first-order lag is not the complete longitudinal autopilot from Experiment 01.</p></details>
+    </section>
+
+    <section id="validationPage" class="page hidden" aria-label="Numerical validation"><div class="section-head"><div><span class="section-kicker">EXPERIMENT 03 / VERIFICATION RECORD</span><h2>Numerical Validation <span>—</span> MATLAB Reference</h2></div><div class="section-meta"><b class="tag">TRACEABLE RESULTS</b></div></div><div class="validation-intro panel"><div><span class="overline">MODEL TRANSPARENCY</span><h3>Computed, not animated.</h3><p>These checks compare the deterministic browser integration against reported MATLAB baseline results. Frequency-domain margins are shown as MATLAB references only: they have not been recomputed by the browser.</p></div><button id="validateBtn" class="btn btn-primary">↻ RE-RUN NUMERICAL CHECKS</button></div><div class="validation-grid"><div class="panel validation-card"><div class="panel-top"><div><span class="overline">PART 01 / AUTOPILOT</span><h3>Unit-Step Response</h3></div><span class="tag" id="apTestStatus">READY</span></div><div id="autopilotValidation" class="result-table"></div></div><div class="panel validation-card"><div class="panel-top"><div><span class="overline">PART 02 / GUIDANCE</span><h3>Terminal Event Check</h3></div><span class="tag" id="gTestStatus">READY</span></div><div id="guidanceValidation" class="result-table"></div></div></div><div class="validation-foot panel"><h3>Engineering Scope &amp; Limitations</h3><div class="scope-grid"><div><span>01 / OPERATING POINT</span><p>Part 1 linearized around 100 m/s. Part 2 assumes constant 50 m/s by default. No end-to-end airframe coupling is implied.</p></div><div><span>02 / SIGN CONVENTIONS</span><p>Autopilot IMU a<sub>z</sub> is positive body-down. Interception normal acceleration is positive upward; the two are not directly interchangeable.</p></div><div><span>03 / CONTROLLER DESIGN</span><p>Continuous-time LQE gains and pole-placement gains are sourced from MATLAB. Process noise covariance is a design assumption.</p></div><div><span>04 / INTEGRATION</span><p>The browser uses deterministic fixed-step classical RK4 and bisection of the 5 m terminal event. MATLAB uses adaptive ode45 with tight tolerances.</p></div></div></div></section>
+  </main>
+  <footer><span>FLIGHT CONTROL LAB <i>©</i> GUIDANCE &amp; CONTROL RESEARCH</span><span>MODEL REFERENCES: ELBIT GUIDANCE ASSIGNMENT · MATLAB IMPLEMENTATION</span><a href="https://github.com/Danielrouach/flight-control-lab" target="_blank" rel="noopener noreferrer">SOURCE CODE ↗</a></footer>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
