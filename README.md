@@ -67,3 +67,7 @@ See [ENGINEERING.md](docs/ENGINEERING.md) for exact equations and assumptions.
 ## Next iterations
 
 Add richer 3D mesh detail, extended parametric robustness exploration, synchronized LOS-rate plots, more comparison modes, and optional React/TypeScript/Vite migration while preserving this independently testable, framework-free numerical baseline. Any full end-to-end autopilot/PN coupling must first have a justified speed/trim conversion and mathematical validation.
+
+### Interception impact animation
+
+The Guidance (02) view renders a deterministic explosion effect **only** when the non-ideal trajectory reaches the MATLAB-referenced 5 m hit-radius event. The visual effect lasts 2.6 seconds in real presentation time (independent of simulation playback speed), is reset/replayed with the transport controls, and is explicitly **not** a blast-physics model or a claim of exact collision. See `src/visualization/explosion.js` and `tests/impact.test.mjs`.

@@ -1,5 +1,6 @@
 /** Canvas 3D projection of generic vehicle geometry, independent of flight solver. */
 import {deg} from '../simulation/core.js';
+import {drawExplosion, explosionActive} from './explosion.js';
 const c={cyan:'#82e8d5',blue:'#75bdff',amber:'#ffc187',grid:'#173147',faint:'#446a7d'};
 function canvas2d(canvas){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);
   canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);
@@ -46,11 +47,11 @@ export function drawAirframe(canvas,s,camera={yaw:-.35,elevation:.35}){
  ctx.font='9px "DM Mono", monospace';ctx.fillStyle='#5b91a8';ctx.fillText('ATTITUDE ×40 / DEFLECTION ×180 VISUAL MAGNIFICATION',16,h-10);
 }
 
-export function drawGuidance(canvas,ideal,lagged,time){
+export function drawGuidance(canvas,ideal,lagged,time,impactAge=null){
  const {ctx,w,h}=canvas2d(canvas);const pad={l:48,r:35,t:28,b:32};
  const paths=[ideal.history,lagged.history],tmax=Math.max(ideal.final.t,lagged.final.t);
  const lastX=Math.max(ideal.final.xM,lagged.final.xM,ideal.final.xT,lagged.final.xT);
- const xmin=-Math.max(150,lastX*.06),xmax=lastX+180;
+ const xmin=-Math.max(150,lastX*.06),xmax=lastX+Math.max(430,lastX*.23);
  const high=Math.max(ideal.p.hM0,lagged.p.hM0,1300),ymin=-high*.18,ymax=high*1.22;
  const scaleX=(w-pad.l-pad.r)/(xmax-xmin),scaleY=(h-pad.t-pad.b)/(ymax-ymin);
  const proj=(x,y)=>[pad.l+(x-xmin)*scaleX,h-pad.b-(y-ymin)*scaleY];
@@ -70,11 +71,25 @@ export function drawGuidance(canvas,ideal,lagged,time){
  function pointAt(result,t){const items=result.history;if(t>=result.final.t)return result.final;
   let lo=0,hi=items.length-1;while(lo<hi){const mid=(lo+hi)>>1;if(items[mid].t<t)lo=mid+1;else hi=mid}return items[Math.min(lo,items.length-1)];}
  const m=pointAt(lagged,time),im=pointAt(ideal,time);
+ const impacted=explosionActive(lagged.hit,lagged.final.t,time,impactAge);
  const mp=proj(m.xM,m.hM),ip=proj(im.xM,im.hM),tp=proj(m.xT,lagged.p.hT0);
  ctx.strokeStyle='#7ee9d6';ctx.lineWidth=1.2;ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(...mp);ctx.lineTo(...tp);ctx.stroke();ctx.setLineDash([]);
  function craft(p,angle,color){ctx.save();ctx.translate(...p);ctx.rotate(-angle);ctx.fillStyle=color;ctx.strokeStyle='#071525';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(11,0);ctx.lineTo(-10,-6);ctx.lineTo(-6,0);ctx.lineTo(-10,6);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
- craft(ip,im.gamma,'#74b6ff');craft(mp,m.gamma,'#ffe0ac');
+ craft(ip,im.gamma,'#74b6ff');if(!impacted||impactAge<.08)craft(mp,m.gamma,'#ffe0ac');
+ if(!impacted||impactAge<.08){
  ctx.strokeStyle='#f6bf7c';ctx.lineWidth=2;ctx.beginPath();ctx.arc(...tp,8,0,2*Math.PI);ctx.stroke();ctx.beginPath();ctx.moveTo(tp[0]-12,tp[1]);ctx.lineTo(tp[0]+12,tp[1]);ctx.moveTo(tp[0],tp[1]-12);ctx.lineTo(tp[0],tp[1]+12);ctx.stroke();
- ctx.textAlign='left';ctx.fillStyle='#add8ef';ctx.font='10px "DM Mono", monospace';ctx.fillText('M',mp[0]+14,mp[1]-8);ctx.fillStyle='#ffca95';ctx.fillText('T',tp[0]+13,tp[1]-12);
+ }
+ ctx.textAlign='left';ctx.fillStyle='#add8ef';ctx.font='10px "DM Mono", monospace';
+ if(!impacted||impactAge<.08){ctx.fillText('M',mp[0]+14,mp[1]-8);ctx.fillStyle='#ffca95';ctx.fillText('T',tp[0]+13,tp[1]-12);}
+ if(impacted){
+   drawExplosion(ctx,tp[0],tp[1],impactAge,Math.min(w,h));
+   const alpha=Math.min(1,Math.max(0,(impactAge-.1)/.3));
+   ctx.save();ctx.textAlign='center';ctx.fillStyle=`rgba(255,228,175,${alpha})`;
+   ctx.font='bold 13px "Space Grotesk", sans-serif';
+   ctx.fillText('INTERCEPTION CONFIRMED',Math.min(Math.max(tp[0],185),w-175),Math.max(pad.t+25,tp[1]-125));
+   ctx.font='9px "DM Mono", monospace';ctx.fillStyle=`rgba(238,176,122,${alpha*.85})`;
+   ctx.fillText('VISUAL FX  /  R ≤ 5 m',Math.min(Math.max(tp[0],185),w-175),Math.max(pad.t+41,tp[1]-109));
+   ctx.restore();
+ }
  ctx.fillStyle='#5e8495';ctx.textAlign='right';ctx.fillText('x / m',w-20,h-13);
 }

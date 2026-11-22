@@ -1,10 +1,11 @@
 import {rad,deg,simulateAutopilot,simulateGuidance,matlabReferences,stepMetrics} from './src/simulation/core.js';
 import {drawPlot} from './src/charts/plot.js';
 import {drawAirframe,drawGuidance} from './src/visualization/airframe.js';
+import {EXPLOSION_DURATION, explosionActive} from './src/visualization/explosion.js';
 
 const $=(id)=>document.getElementById(id);
 const state={page:'autopilot',play:false,t:0,speed:1,lastStamp:0,lastCharts:0,
-  camera:{yaw:-.35,elevation:.35},ap:null,ideal:null,lagged:null,apOptions:{},gOptions:{}};
+  camera:{yaw:-.35,elevation:.35},impactAge:null,ap:null,ideal:null,lagged:null,apOptions:{},gOptions:{}};
 const safe=(value,digits=3)=>`${value>=0?'+':''}${value.toFixed(digits)}`;
 function setText(id,text){$(id).textContent=text;}
 function selectedNumber(id){return Number($(id).value);}
@@ -31,14 +32,19 @@ function simulateAp(){showRanges();state.apOptions=currentApOptions();state.ap=s
 function simulateG(){showRanges();state.gOptions=currentGOptions();state.ideal=simulateGuidance(state.gOptions,false);state.lagged=simulateGuidance(state.gOptions,true);resetTime();
  setText('statIdealTime',state.ideal.hit?state.ideal.final.t.toFixed(3):'NO HIT');
  setText('statLagTime',state.lagged.hit?state.lagged.final.t.toFixed(3):'NO HIT');}
-function resetTime(){state.t=0;state.play=false;updatePlayLabels();refresh(true);}
+function resetTime(){state.t=0;state.impactAge=null;state.play=false;updatePlayLabels();refresh(true);}
 function updatePlayLabels(){
  $('apPlay').innerHTML=state.play&&state.page==='autopilot'?'Ⅱ PAUSE SIMULATION':'<span>▶</span> RUN SIMULATION';
  $('gPlay').innerHTML=state.play&&state.page==='guidance'?'Ⅱ PAUSE SIMULATION':'<span>▶</span> RUN INTERCEPTION';
 }
 function endTime(){return state.page==='autopilot'?state.ap?.final.t||1.5:
   state.page==='guidance'?Math.max(state.ideal?.final.t||0,state.lagged?.final.t||0):0;}
-function togglePlay(){const end=endTime();if(state.t>=end-1e-8)state.t=0;state.play=!state.play;updatePlayLabels();}
+function togglePlay(){
+ const end=endTime();
+ const resumingImpact=state.page==='guidance' && state.impactAge!==null && state.impactAge<EXPLOSION_DURATION;
+ if(state.t>=end-1e-8 && !resumingImpact){state.t=0;state.impactAge=null;}
+ state.play=!state.play;updatePlayLabels();
+}
 function interpolation(items,t){
  if(!items.length)return null;
  if(t<=items[0].t)return items[0];if(t>=items.at(-1).t)return items.at(-1);
@@ -57,12 +63,14 @@ function drawAp(){if(!state.ap)return;const item=interpolation(state.ap.history,
  drawAirframe($('airframeCanvas'),item,state.camera);
 }
 function drawG(){if(!state.ideal)return;const point=interpolation(state.lagged.history,state.t);
+ const impactOn=explosionActive(state.lagged.hit,state.lagged.final.t,state.t,state.impactAge);
+ $('guidanceCanvas').parentElement.classList.toggle('impact-active',impactOn);
  setText('sceneRange',point.R.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})+' m');
- setText('sceneGuidanceStatus',state.lagged.hit&&state.t>=state.lagged.final.t?'5 M THRESHOLD REACHED':
+ setText('sceneGuidanceStatus',state.lagged.hit&&state.t>=state.lagged.final.t?'INTERCEPTED · 5 M HIT RADIUS':
   state.t>=state.lagged.final.t?'TERMINATED / NO HIT':'TRACKING · CLOSING '+point.Vc.toFixed(1)+' m/s');
  setText('statLambda',(point.lambda*deg).toFixed(2));setText('statNormalA',safe(point.actual));
  setText('gTime','T+ '+state.t.toFixed(2)+' s');$('gScrub').value=1000*state.t/endTime();
- drawGuidance($('guidanceCanvas'),state.ideal,state.lagged,state.t);
+ drawGuidance($('guidanceCanvas'),state.ideal,state.lagged,state.t,state.impactAge);
 }
 function drawCharts(){
  if(state.page==='autopilot'){
@@ -88,13 +96,19 @@ function refresh(forceCharts=false){
 function frame(stamp){const dt=Math.min((stamp-(state.lastStamp||stamp))/1000,.08);state.lastStamp=stamp;
  if(state.play&&state.page!=='validation'){
    state.t=Math.min(endTime(),state.t+dt*state.speed);
-   if(state.t>=endTime()){state.play=false;updatePlayLabels()}
+   if(state.page==='guidance' && state.lagged.hit && state.t>=state.lagged.final.t-1e-6){
+     // Flight time stops at the terminal event; the explosion has its own real-time clock.
+     state.impactAge=Math.min(EXPLOSION_DURATION,(state.impactAge??0)+dt);
+   }
+   if(state.t>=endTime() && (state.page!=='guidance' || state.impactAge===null || state.impactAge>=EXPLOSION_DURATION)){
+     state.play=false;updatePlayLabels();
+   }
    refresh();
  }
  requestAnimationFrame(frame);
 }
 function selectPage(page){if(!['autopilot','guidance','validation'].includes(page))return;
- state.page=page;state.t=0;state.play=false;state.speed=page==='guidance'?10:1;
+ state.page=page;state.t=0;state.impactAge=null;state.play=false;state.speed=page==='guidance'?10:1;
  document.querySelectorAll('.page').forEach(el=>el.classList.toggle('hidden',el.id!==page+'Page'));
  document.querySelectorAll('[data-page]').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
  if(page==='autopilot')$('apSpeed').value='1';if(page==='guidance')$('gSpeed').value='10';
@@ -128,7 +142,12 @@ for(const name of ['gN','gTau','gAltitude','gTargetX','gVM','gVT'])$(name).addEv
 $('apPlay').addEventListener('click',togglePlay);$('gPlay').addEventListener('click',togglePlay);
 $('apReset').addEventListener('click',resetTime);$('gReset').addEventListener('click',resetTime);
 $('apScrub').addEventListener('input',e=>{state.play=false;state.t=state.ap.final.t*Number(e.target.value)/1000;updatePlayLabels();refresh(true)});
-$('gScrub').addEventListener('input',e=>{state.play=false;state.t=endTime()*Number(e.target.value)/1000;updatePlayLabels();refresh(true)});
+$('gScrub').addEventListener('input',e=>{
+ state.play=false;state.t=endTime()*Number(e.target.value)/1000;
+ // Scrubbing to the hit event previews a deterministic frame; rewinding clears it.
+ state.impactAge=state.lagged.hit && state.t>=state.lagged.final.t-1e-6 ? .45 : null;
+ updatePlayLabels();refresh(true);
+});
 $('apSpeed').addEventListener('change',e=>{state.speed=Number(e.target.value)});
 $('gSpeed').addEventListener('change',e=>{state.speed=Number(e.target.value)});
 $('validateBtn').addEventListener('click',runValidation);
